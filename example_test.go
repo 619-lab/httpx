@@ -30,10 +30,15 @@ func optHBO(c *httpx.Client) {
 }
 
 func TestHttpx(t *testing.T) {
-	client := httpx.NewClient("https://httpbin.org", httpx.WithLogger(printLogger{}), optHBO)
+	client := httpx.NewClient("https://httpbingo.org", httpx.WithLogger(printLogger{}), optHBO)
 
 	var result map[string]any
-	if err := client.Get("/get", map[string]string{"q": "hello"}, &result); err != nil {
+
+	if err := client.Get("/get", map[string]string{"q": "hello"}, &result, httpx.ReqNoLog()); err != nil {
+		panic(err)
+	}
+
+	if err := client.Get("/get", map[string]string{"q": "world"}, &result); err != nil {
 		panic(err)
 	}
 

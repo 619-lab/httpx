@@ -25,33 +25,38 @@ func NewClient(url string, options ...func(*Client)) *Client {
 	return &cln
 }
 
-func (c *Client) Post(path string, queryParam map[string]string, body any, v any) error {
-	return c.request(http.MethodPost, c.url+path, queryParam, body, v)
+func (c *Client) Post(path string, queryParam map[string]string, body any, v any, reqOpts ...requestOption) error {
+	return c.request(http.MethodPost, c.url+path, queryParam, body, v, reqOpts...)
 }
 
-func (c *Client) Get(path string, queryParams map[string]string, v any) error {
-	return c.request(http.MethodGet, c.url+path, queryParams, nil, v)
+func (c *Client) Get(path string, queryParams map[string]string, v any, reqOpts ...requestOption) error {
+	return c.request(http.MethodGet, c.url+path, queryParams, nil, v, reqOpts...)
 }
 
-func (c *Client) Patch(path string, queryParams map[string]string, body any, v any) error {
-	return c.request(http.MethodPatch, c.url+path, queryParams, body, v)
+func (c *Client) Patch(path string, queryParams map[string]string, body any, v any, reqOpts ...requestOption) error {
+	return c.request(http.MethodPatch, c.url+path, queryParams, body, v, reqOpts...)
 }
 
-func (c *Client) Put(path string) error {
-	return c.request(http.MethodPut, c.url+path, nil, nil, nil)
+func (c *Client) Put(path string, reqOpts ...requestOption) error {
+	return c.request(http.MethodPut, c.url+path, nil, nil, nil, reqOpts...)
 }
 
-func (c *Client) Delete(url string) error {
-	return c.request(http.MethodDelete, url, nil, nil, nil)
+func (c *Client) Delete(url string, reqOpts ...requestOption) error {
+	return c.request(http.MethodDelete, url, nil, nil, nil, reqOpts...)
 }
 
-func (c *Client) request(method string, url string, queryParams map[string]string, body any, v any) error {
+func (c *Client) request(method string, url string, queryParams map[string]string, body any, v any, reqOpts ...requestOption) error {
 
 	var b bytes.Buffer
 	if body != nil {
 		if err := json.NewEncoder(&b).Encode(body); err != nil {
 			return fmt.Errorf("encoding: error: %w", err)
 		}
+	}
+
+	rc := &requestContext{}
+	for _, o := range reqOpts {
+		o(rc)
 	}
 
 	r, err := http.NewRequest(method, url, &b)
@@ -72,12 +77,23 @@ func (c *Client) request(method string, url string, queryParams map[string]strin
 	r.URL.RawQuery = q.Encode()
 
 	var ctx any
-	if c.logger != nil {
+	if !rc.disableLog && c.logger != nil {
 		ctx = c.logger.Start(r)
 	}
 
+	// requestOption
+	for hk, hv := range rc.headers {
+		r.Header.Set(hk, hv)
+	}
+
+	if rc.modifier != nil {
+		rc.modifier(r)
+	}
+
+	//==========================================================================
+
 	response, err := c.http.Do(r)
-	if c.logger != nil {
+	if !rc.disableLog && c.logger != nil {
 		c.logger.End(ctx, response, err)
 	}
 
