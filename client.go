@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 type Client struct {
@@ -45,25 +46,44 @@ func (c *Client) Delete(url string, reqOpts ...requestOption) error {
 	return c.request(http.MethodDelete, url, nil, nil, nil, reqOpts...)
 }
 
-func (c *Client) request(method string, url string, queryParams map[string]string, body any, v any, reqOpts ...requestOption) error {
-
-	var b bytes.Buffer
-	if body != nil {
-		if err := json.NewEncoder(&b).Encode(body); err != nil {
-			return fmt.Errorf("encoding: error: %w", err)
-		}
-	}
+func (c *Client) request(method string, url_ string, queryParams map[string]string, body any, v any, reqOpts ...requestOption) error {
 
 	rc := &requestContext{}
 	for _, o := range reqOpts {
 		o(rc)
 	}
 
-	r, err := http.NewRequest(method, url, &b)
+	var b bytes.Buffer
+	if body != nil {
+		switch rc.bodyType {
+		case bodyForm:
+			switch fc := body.(type) {
+			case string:
+				b.WriteString(fc)
+			case url.Values:
+				b.WriteString(fc.Encode())
+			default:
+				return fmt.Errorf("form body must be string or url.Values")
+			}
+		default:
+			if err := json.NewEncoder(&b).Encode(body); err != nil {
+				return fmt.Errorf("json encode failed: %w", err)
+			}
+		}
+	}
+
+	r, err := http.NewRequest(method, url_, &b)
 	if err != nil {
 		return err
 	}
-	r.Header.Add("Content-Type", "application/json; charset=utf-8")
+
+	switch rc.bodyType {
+	case bodyForm:
+		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	default:
+		r.Header.Add("Content-Type", "application/json; charset=utf-8")
+	}
+
 	if c.Trick != nil {
 		c.Trick(r)
 	}

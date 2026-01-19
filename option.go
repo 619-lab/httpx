@@ -45,3 +45,9 @@ func ReqModifier(fn func(*http.Request) error) requestOption {
 		rc.modifier = fn
 	}
 }
+
+func ReqForm() requestOption {
+	return func(rc *requestContext) {
+		rc.bodyType = bodyForm
+	}
+}
