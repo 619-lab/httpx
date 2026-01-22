@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -121,6 +122,14 @@ func (c *Client) request(method string, url_ string, queryParams map[string]stri
 		return fmt.Errorf("HTTPClient.Do: %w", err)
 	}
 	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		data, _ := io.ReadAll(response.Body)
+		return &HTTPError{
+			StatusCode: response.StatusCode,
+			Body:       data,
+		}
+	}
 	if v != nil {
 		err = json.NewDecoder(response.Body).Decode(v)
 		if err != nil {
