@@ -9,6 +9,8 @@ type requestContext struct {
 	disableLog bool
 	modifier   func(*http.Request) error
 	bodyType   bodyType
+
+	maxResponseBytes int64
 }
 
 type bodyType int

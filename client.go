@@ -9,6 +9,10 @@ import (
 	"net/url"
 )
 
+const (
+	__defaultBytes = 10 << 20
+)
+
 type Client struct {
 	url    string
 	http   *http.Client
@@ -123,15 +127,20 @@ func (c *Client) request(method string, url_ string, queryParams map[string]stri
 	}
 	defer response.Body.Close()
 
+	var maxBodyBytes int64 = __defaultBytes
+	if rc.maxResponseBytes > 0 {
+		maxBodyBytes = rc.maxResponseBytes
+	}
+	limited := io.LimitReader(response.Body, maxBodyBytes)
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		data, _ := io.ReadAll(response.Body)
+		data, _ := io.ReadAll(limited)
 		return &HTTPError{
 			StatusCode: response.StatusCode,
 			Body:       data,
 		}
 	}
 	if v != nil {
-		err = json.NewDecoder(response.Body).Decode(v)
+		err = json.NewDecoder(limited).Decode(v)
 		if err != nil {
 			return fmt.Errorf("decode error: %w", err)
 		}

@@ -51,3 +51,9 @@ func ReqForm() requestOption {
 		rc.bodyType = bodyForm
 	}
 }
+
+func ReqMaxRespBytes(limit int64) requestOption {
+	return func(rc *requestContext) {
+		rc.maxResponseBytes = limit
+	}
+}
